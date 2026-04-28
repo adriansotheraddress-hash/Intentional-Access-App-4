@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0A0A"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:text="⏸"
+            android:textSize="40sp"/>
+
+        <TextView
+            android:id="@+id/appNameText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="You're trying to open Instagram"
+            android:textColor="#555555"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:textAllCaps="true"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="What is your intent\nfor this session?"
+            android:textColor="#F0F0F0"
+            android:textSize="28sp"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.2"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Be specific. Vague answers won't be accepted."
+            android:textColor="#555555"
+            android:textSize="13sp"/>
+
+        <EditText
+            android:id="@+id/intentInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:background="@drawable/input_background"
+            android:hint="e.g. I want to check if my friend replied about Saturday's plans, then close the app."
+            android:textColorHint="#333333"
+            android:textColor="#E8E8E8"
+            android:textSize="15sp"
+            android:padding="16dp"
+            android:minLines="4"
+            android:maxLines="6"
+            android:gravity="top"
+            android:inputType="textMultiLine|textCapSentences"/>
+
+        <TextView
+            android:id="@+id/wordCountText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="0 / 10 words minimum"
+            android:textColor="#444444"
+            android:textSize="12sp"
+            android:gravity="end"/>
+
+        <Button
+            android:id="@+id/submitButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Enter with intention"
+            android:textColor="#0A0A0A"
+            android:backgroundTint="#E8E8E8"
+            android:padding="16dp"
+            android:textSize="15sp"/>
+
+    </LinearLayout>
+</ScrollView>
