@@ -14,33 +14,53 @@ import android.os.Looper
 class AppMonitorService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
-    private val checkInterval = 1000L // check every second
-    private var lastBlockedApp = ""
-    private var lastUnlockedPackage = ""
-    private var lastUnlockedAt = 0L
 
-    private val blockedApps = mapOf(
-        "com.instagram.android" to "Instagram",
-        "com.twitter.android" to "Twitter",
-        "com.zhiliaoapp.musically" to "TikTok",
-        "com.facebook.katana" to "Facebook",
-        "com.reddit.frontpage" to "Reddit",
-        "com.google.android.youtube" to "YouTube",
-        "com.snapchat.android" to "Snapchat",
-        "com.linkedin.android" to "LinkedIn",
-        "com.threads.android" to "Threads"
-    )
+    // Guard against duplicate monitoring loops if onStartCommand is called
+    // more than once while the service is already running (START_STICKY restart,
+    // or the user tapping Start again without the app checking the running state).
+    private var isMonitoring = false
+
+    // Track which app last triggered the gate so we don't spam it
+    private var lastBlockedApp = ""
+
+    // ── blocked-app config cache ─────────────────────────────────────────────
+    // Refreshed from SharedPreferences at most once every CONFIG_CACHE_TTL_MS.
+    // Avoids parsing JSON on every 1-second poll tick.
+    private var cachedBlockedApps: Map<String, String> = emptyMap()
+    private var configCachedAt: Long = 0L
+
+    private fun getBlockedApps(): Map<String, String> {
+        val now = System.currentTimeMillis()
+        if (now - configCachedAt > CONFIG_CACHE_TTL_MS) {
+            cachedBlockedApps = BlockedAppsConfig.getEnabledApps(this)
+            configCachedAt = now
+        }
+        return cachedBlockedApps
+    }
+
+    // ── polling loop ─────────────────────────────────────────────────────────
 
     private val monitorRunnable = object : Runnable {
         override fun run() {
             checkForegroundApp()
-            handler.postDelayed(this, checkInterval)
+            handler.postDelayed(this, CHECK_INTERVAL_MS)
         }
     }
 
+    // ── lifecycle ────────────────────────────────────────────────────────────
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(1, buildNotification())
-        handler.post(monitorRunnable)
+        startForeground(NOTIFICATION_ID, buildNotification())
+
+        // Only start the polling loop once — safe even if onStartCommand fires again
+        if (!isMonitoring) {
+            isMonitoring = true
+            // Persist the running state so MainActivity can reflect it correctly
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_SERVICE_RUNNING, true).apply()
+            handler.post(monitorRunnable)
+        }
+
         return START_STICKY
     }
 
@@ -48,43 +68,61 @@ class AppMonitorService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(monitorRunnable)
+        isMonitoring = false
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_SERVICE_RUNNING, false).apply()
         super.onDestroy()
     }
 
+    // ── core check ───────────────────────────────────────────────────────────
+
     private fun checkForegroundApp() {
-        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val usageStatsManager =
+            getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val now = System.currentTimeMillis()
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY, now - 5000, now
-        )
+
+        // queryUsageStats can throw SecurityException if permission was revoked
+        // at runtime, or throw other exceptions on certain OEM builds.
+        val stats = try {
+            usageStatsManager.queryUsageStats(
+                UsageStatsManager.INTERVAL_DAILY,
+                now - USAGE_WINDOW_MS,
+                now
+            )
+        } catch (_: Exception) {
+            return  // Permission gone or API error — skip this tick silently
+        }
 
         if (stats.isNullOrEmpty()) return
 
         val foregroundApp = stats
-            .filter { it.lastTimeUsed > now - 3000 }
+            .filter { it.lastTimeUsed > now - USAGE_FRESHNESS_MS }
             .maxByOrNull { it.lastTimeUsed }
             ?.packageName ?: return
 
+        val blockedApps = getBlockedApps()
+
         if (!blockedApps.containsKey(foregroundApp)) {
+            // User navigated away from a blocked app — reset so the gate can
+            // fire again if they return before the session expires
             lastBlockedApp = ""
             return
         }
 
-        // Check if this app is currently unlocked
-        val prefs = getSharedPreferences("intentional_access", Context.MODE_PRIVATE)
-        val unlockedPackage = prefs.getString("unlocked_package", "") ?: ""
-        val unlockedAt = prefs.getLong("unlocked_at", 0L)
-        val sessionDuration = 60 * 60 * 1000L // 1 hour
+        // Check whether this app has an active unlocked session
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val unlockedPackage = prefs.getString(KEY_UNLOCKED_PACKAGE, "") ?: ""
+        val unlockedAt      = prefs.getLong(KEY_UNLOCKED_AT, 0L)
 
         val isUnlocked = unlockedPackage == foregroundApp &&
-                (now - unlockedAt) < sessionDuration
+                (now - unlockedAt) < SESSION_DURATION_MS
 
         if (isUnlocked) {
             lastBlockedApp = ""
             return
         }
 
-        // Avoid showing the gate repeatedly for the same app
+        // Deduplication — don't re-launch the gate for the same app on every tick
         if (foregroundApp == lastBlockedApp) return
 
         lastBlockedApp = foregroundApp
@@ -92,23 +130,39 @@ class AppMonitorService : Service() {
         IntentGateActivity.launch(this, foregroundApp, appName)
     }
 
+    // ── notification ─────────────────────────────────────────────────────────
+
     private fun buildNotification(): Notification {
         val channelId = "intentional_access_monitor"
         val channel = NotificationChannel(
             channelId,
             "App Monitor",
             NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Monitoring app usage for intentional access"
-        }
+        ).apply { description = "Monitoring app usage for intentional access" }
 
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.createNotificationChannel(channel)
+        getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(channel)
 
         return Notification.Builder(this, channelId)
             .setContentTitle("Intentional Access")
             .setContentText("Watching for high-stimulation apps")
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .build()
+    }
+
+    // ── constants ────────────────────────────────────────────────────────────
+
+    companion object {
+        private const val NOTIFICATION_ID      = 1
+        private const val CHECK_INTERVAL_MS    = 1_000L          // poll every 1 s
+        private const val USAGE_WINDOW_MS      = 5_000L          // query last 5 s of usage data
+        private const val USAGE_FRESHNESS_MS   = 3_000L          // "foreground" = used within 3 s
+        private const val SESSION_DURATION_MS  = 60 * 60 * 1_000L // 1-hour unlock window
+        private const val CONFIG_CACHE_TTL_MS  = 30_000L         // re-read config every 30 s
+
+        const val PREFS_NAME          = "intentional_access"
+        const val KEY_SERVICE_RUNNING = "service_running"
+        const val KEY_UNLOCKED_PACKAGE = "unlocked_package"
+        const val KEY_UNLOCKED_AT     = "unlocked_at"
     }
 }
