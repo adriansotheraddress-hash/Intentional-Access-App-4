@@ -12,14 +12,22 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
+    // Views cached in onCreate — not looked up again on every onResume
+    private lateinit var statusText: TextView
+    private lateinit var permissionButton: Button
+    private lateinit var overlayButton: Button
+    private lateinit var startButton: Button
+    private lateinit var settingsLink: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val statusText = findViewById<TextView>(R.id.statusText)
-        val permissionButton = findViewById<Button>(R.id.permissionButton)
-        val overlayButton = findViewById<Button>(R.id.overlayButton)
-        val startButton = findViewById<Button>(R.id.startButton)
+        statusText       = findViewById(R.id.statusText)
+        permissionButton = findViewById(R.id.permissionButton)
+        overlayButton    = findViewById(R.id.overlayButton)
+        startButton      = findViewById(R.id.startButton)
+        settingsLink     = findViewById(R.id.settingsLink)
 
         permissionButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
@@ -36,14 +44,20 @@ class MainActivity : AppCompatActivity() {
         startButton.setOnClickListener {
             if (hasUsagePermission() && hasOverlayPermission()) {
                 startForegroundService(Intent(this, AppMonitorService::class.java))
+                // onStartCommand sets the KEY_SERVICE_RUNNING flag — updateUI will
+                // read it on the next onResume; update optimistically here too
                 statusText.text = "✓ Intentional Access is active"
-                statusText.setTextColor(0xFF4ADE80.toInt())
+                statusText.setTextColor(COLOR_GREEN)
                 startButton.text = "Running"
                 startButton.isEnabled = false
             } else {
                 statusText.text = "Please grant both permissions first."
-                statusText.setTextColor(0xFFF87171.toInt())
+                statusText.setTextColor(COLOR_RED)
             }
+        }
+
+        settingsLink.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
 
@@ -52,32 +66,44 @@ class MainActivity : AppCompatActivity() {
         updateUI()
     }
 
+    // ── UI state ─────────────────────────────────────────────────────────────
+
     private fun updateUI() {
-        val statusText = findViewById<TextView>(R.id.statusText)
-        val permissionButton = findViewById<Button>(R.id.permissionButton)
-        val overlayButton = findViewById<Button>(R.id.overlayButton)
-        val startButton = findViewById<Button>(R.id.startButton)
+        val usageGranted   = hasUsagePermission()
+        val overlayGranted = hasOverlayPermission()
+        val serviceRunning = isServiceRunning()
 
-        if (hasUsagePermission()) {
-            permissionButton.text = "✓ Usage Access Granted"
-            permissionButton.isEnabled = false
-        }
+        permissionButton.text      = if (usageGranted)   "✓ Usage Access Granted"    else "1. Grant Usage Access"
+        permissionButton.isEnabled = !usageGranted
 
-        if (hasOverlayPermission()) {
-            overlayButton.text = "✓ Overlay Permission Granted"
-            overlayButton.isEnabled = false
-        }
+        overlayButton.text      = if (overlayGranted) "✓ Overlay Permission Granted" else "2. Grant Overlay Permission"
+        overlayButton.isEnabled = !overlayGranted
 
-        if (hasUsagePermission() && hasOverlayPermission()) {
-            startButton.isEnabled = true
-            statusText.text = "Ready to start."
-            statusText.setTextColor(0xFF888888.toInt())
+        when {
+            serviceRunning -> {
+                startButton.text      = "Running"
+                startButton.isEnabled = false
+                statusText.text       = "✓ Intentional Access is active"
+                statusText.setTextColor(COLOR_GREEN)
+            }
+            usageGranted && overlayGranted -> {
+                startButton.isEnabled = true
+                statusText.text       = "Ready to start."
+                statusText.setTextColor(COLOR_GREY)
+            }
+            else -> {
+                startButton.isEnabled = false
+                statusText.text       = "Grant permissions above to get started."
+                statusText.setTextColor(COLOR_GREY)
+            }
         }
     }
 
+    // ── permission checks ────────────────────────────────────────────────────
+
     private fun hasUsagePermission(): Boolean {
         val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-        val mode = appOps.checkOpNoThrow(
+        val mode   = appOps.checkOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS,
             android.os.Process.myUid(),
             packageName
@@ -85,7 +111,17 @@ class MainActivity : AppCompatActivity() {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    private fun hasOverlayPermission(): Boolean {
-        return Settings.canDrawOverlays(this)
+    private fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this)
+
+    private fun isServiceRunning(): Boolean =
+        getSharedPreferences(AppMonitorService.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(AppMonitorService.KEY_SERVICE_RUNNING, false)
+
+    // ── constants ────────────────────────────────────────────────────────────
+
+    companion object {
+        private const val COLOR_GREEN = 0xFF4ADE80.toInt()
+        private const val COLOR_RED   = 0xFFF87171.toInt()
+        private const val COLOR_GREY  = 0xFF888888.toInt()
     }
 }

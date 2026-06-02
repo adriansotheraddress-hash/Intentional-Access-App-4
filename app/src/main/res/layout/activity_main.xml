@@ -93,5 +93,16 @@
             android:textSize="13sp"
             android:gravity="center"/>
 
+        <TextView
+            android:id="@+id/settingsLink"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Manage blocked apps →"
+            android:textColor="#444444"
+            android:textSize="13sp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"/>
+
     </LinearLayout>
 </ScrollView>
