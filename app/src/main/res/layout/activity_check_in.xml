@@ -13,10 +13,11 @@
         android:gravity="center_horizontal">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/checkinAppName"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="48dp"
-            android:text="● COTTER"
+            android:text="● 1 HOUR LATER"
             android:textColor="#4A7A8A"
             android:textSize="11sp"
             android:letterSpacing="0.15"
@@ -24,80 +25,63 @@
             android:fontFamily="sans-serif-medium"/>
 
         <TextView
+            android:id="@+id/checkinIntentText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="A pause before\nthe scroll."
+            android:text="You set out to check your messages.\n\nDid you do it?"
             android:textColor="#1A2D35"
-            android:textSize="36sp"
-            android:lineSpacingMultiplier="1.15"
+            android:textSize="28sp"
+            android:lineSpacingMultiplier="1.2"
             android:fontFamily="serif"/>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Be deliberate about how you spend your attention."
-            android:textColor="#5A8A9A"
-            android:textSize="14sp"
-            android:lineSpacingMultiplier="1.4"/>
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="40dp"
-            android:layout_marginBottom="40dp"
+            android:layout_marginBottom="32dp"
             android:background="#AACCDD"/>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="SETUP"
-            android:textColor="#4A7A8A"
-            android:textSize="11sp"
-            android:letterSpacing="0.15"
-            android:textAllCaps="true"
-            android:layout_marginBottom="16dp"/>
-
         <Button
-            android:id="@+id/permissionButton"
+            android:id="@+id/btnYes"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="1. Grant Usage Access"
+            android:text="Yes — done"
             android:textColor="#FFFFFF"
             android:backgroundTint="#1A2D35"
-            android:padding="16dp"
+            android:padding="18dp"
             android:stateListAnimator="@null"
-            android:layout_marginBottom="12dp"/>
+            android:layout_marginBottom="12dp"
+            android:textSize="16sp"/>
 
         <Button
-            android:id="@+id/overlayButton"
+            android:id="@+id/btnPartly"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="2. Grant Overlay Permission"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#1A2D35"
-            android:padding="16dp"
+            android:text="Partly — I drifted a little"
+            android:textColor="#1A2D35"
+            android:backgroundTint="#C4E8F0"
+            android:padding="18dp"
             android:stateListAnimator="@null"
-            android:layout_marginBottom="12dp"/>
+            android:layout_marginBottom="12dp"
+            android:textSize="16sp"/>
 
         <Button
-            android:id="@+id/startButton"
+            android:id="@+id/btnNo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="3. Start Monitoring"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#4A9A7A"
-            android:padding="16dp"
-            android:enabled="false"
+            android:text="No, I got pulled away"
+            android:textColor="#1A2D35"
+            android:backgroundTint="#C4E8F0"
+            android:padding="18dp"
             android:stateListAnimator="@null"
-            android:layout_marginBottom="24dp"/>
+            android:layout_marginBottom="32dp"
+            android:textSize="16sp"/>
 
         <TextView
-            android:id="@+id/statusText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Grant permissions above to get started."
+            android:text="Honest answers train better intents."
             android:textColor="#4A7A8A"
             android:textSize="13sp"
             android:gravity="center"/>

@@ -2,8 +2,8 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0A0A"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:background="@drawable/gradient_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,74 +16,95 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="48dp"
-            android:text="⏸"
-            android:textSize="40sp"/>
-
-        <TextView
             android:id="@+id/appNameText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="You're trying to open Instagram"
-            android:textColor="#555555"
-            android:textSize="12sp"
-            android:letterSpacing="0.1"
-            android:textAllCaps="true"/>
+            android:text="● OPENING INSTAGRAM"
+            android:textColor="#8B6F8E"
+            android:textSize="11sp"
+            android:letterSpacing="0.15"
+            android:textAllCaps="true"
+            android:fontFamily="sans-serif-medium"/>
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="What is your intent\nfor this session?"
-            android:textColor="#F0F0F0"
-            android:textSize="28sp"
-            android:gravity="center"
-            android:lineSpacingMultiplier="1.2"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Be specific. Vague answers won't be accepted."
-            android:textColor="#555555"
-            android:textSize="13sp"/>
-
-        <EditText
-            android:id="@+id/intentInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:background="@drawable/input_background"
-            android:hint="e.g. I want to check if my friend replied about Saturday's plans, then close the app."
-            android:textColorHint="#333333"
-            android:textColor="#E8E8E8"
-            android:textSize="15sp"
-            android:padding="16dp"
-            android:minLines="4"
-            android:maxLines="6"
-            android:gravity="top"
-            android:inputType="textMultiLine|textCapSentences"/>
+            android:layout_marginTop="24dp"
+            android:text="Before you open it —\nwhat&#8217;s your intent\nfor this session?"
+            android:textColor="#2D2235"
+            android:textSize="32sp"
+            android:lineSpacingMultiplier="1.15"
+            android:fontFamily="serif"/>
 
-        <TextView
-            android:id="@+id/wordCountText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="0 / 10 words minimum"
-            android:textColor="#444444"
-            android:textSize="12sp"
-            android:gravity="end"/>
+            android:layout_marginTop="28dp"
+            android:orientation="vertical"
+            android:background="@drawable/input_background_light"
+            android:padding="16dp">
+
+            <EditText
+                android:id="@+id/intentInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:hint="I want to check if my sister replied about the weekend trip"
+                android:textColorHint="#C4A8C8"
+                android:textColor="#2D2235"
+                android:textSize="15sp"
+                android:minLines="3"
+                android:maxLines="5"
+                android:gravity="top"
+                android:inputType="textMultiLine|textCapSentences"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/wordCountText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="0 / 10 words"
+                    android:textColor="#C4A8C8"
+                    android:textSize="12sp"/>
+
+                <TextView
+                    android:id="@+id/freshnessText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="12sp"
+                    android:textColor="#7BAF8E"/>
+
+            </LinearLayout>
+        </LinearLayout>
 
         <Button
             android:id="@+id/submitButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Unlock for 1 hour"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#1E1428"
+            android:padding="18dp"
+            android:textSize="16sp"
+            android:stateListAnimator="@null"
+            android:enabled="false"/>
+
+        <TextView
+            android:id="@+id/cancelText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Enter with intention"
-            android:textColor="#0A0A0A"
-            android:backgroundTint="#E8E8E8"
-            android:padding="16dp"
-            android:textSize="15sp"/>
+            android:text="Not now — close"
+            android:textColor="#A888A8"
+            android:textSize="13sp"
+            android:padding="8dp"/>
 
     </LinearLayout>
 </ScrollView>

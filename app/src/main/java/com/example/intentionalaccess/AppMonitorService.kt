@@ -7,6 +7,7 @@ import android.app.Service
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -14,10 +15,8 @@ import android.os.Looper
 class AppMonitorService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
-    private val checkInterval = 1000L // check every second
+    private val checkInterval = 1000L
     private var lastBlockedApp = ""
-    private var lastUnlockedPackage = ""
-    private var lastUnlockedAt = 0L
 
     private val blockedApps = mapOf(
         "com.instagram.android" to "Instagram",
@@ -70,21 +69,29 @@ class AppMonitorService : Service() {
             return
         }
 
-        // Check if this app is currently unlocked
         val prefs = getSharedPreferences("intentional_access", Context.MODE_PRIVATE)
         val unlockedPackage = prefs.getString("unlocked_package", "") ?: ""
         val unlockedAt = prefs.getLong("unlocked_at", 0L)
-        val sessionDuration = 60 * 60 * 1000L // 1 hour
+        val sessionDuration = 60 * 60 * 1000L
+
+        val sessionExpired = unlockedPackage == foregroundApp &&
+                (now - unlockedAt) >= sessionDuration
 
         val isUnlocked = unlockedPackage == foregroundApp &&
                 (now - unlockedAt) < sessionDuration
+
+        if (sessionExpired) {
+            if (foregroundApp == lastBlockedApp) return
+            lastBlockedApp = foregroundApp
+            // TODO: CheckInActivity.launch(this, foregroundApp, appName, lastIntent)
+            return
+        }
 
         if (isUnlocked) {
             lastBlockedApp = ""
             return
         }
 
-        // Avoid showing the gate repeatedly for the same app
         if (foregroundApp == lastBlockedApp) return
 
         lastBlockedApp = foregroundApp
@@ -92,23 +99,49 @@ class AppMonitorService : Service() {
         IntentGateActivity.launch(this, foregroundApp, appName)
     }
 
+    private fun extractLastIntent(sessionsJson: String, packageName: String): String {
+        return try {
+            val array = org.json.JSONArray(sessionsJson)
+            for (i in array.length() - 1 downTo 0) {
+                val obj = array.getJSONObject(i)
+                if (obj.getString("package") == packageName) {
+                    return obj.getString("intent")
+                }
+            }
+            "do what you came for"
+        } catch (e: Exception) {
+            "do what you came for"
+        }
+    }
+
     private fun buildNotification(): Notification {
         val channelId = "intentional_access_monitor"
-        val channel = NotificationChannel(
-            channelId,
-            "App Monitor",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Monitoring app usage for intentional access"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "App Monitor",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Monitoring app usage for intentional access"
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
         }
 
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.createNotificationChannel(channel)
-
-        return Notification.Builder(this, channelId)
-            .setContentTitle("Intentional Access")
-            .setContentText("Watching for high-stimulation apps")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .build()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, channelId)
+                .setContentTitle("Cotter")
+                .setContentText("Watching for high-stimulation apps")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+                .setContentTitle("Cotter")
+                .setContentText("Watching for high-stimulation apps")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .build()
+        }
     }
 }

@@ -1,3 +1,12 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+val localProps = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localProps.load(FileInputStream(localPropsFile))
+}
+
 plugins {
     alias(libs.plugins.android.application)
 }
@@ -18,6 +27,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "API_KEY", "\"${localProps.getProperty("API_KEY") ?: ""}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
