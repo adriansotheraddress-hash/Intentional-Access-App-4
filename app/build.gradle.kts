@@ -28,7 +28,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "API_KEY", "\"${localProps.getProperty("API_KEY") ?: ""}\"")
+        buildConfigField("String", "APP_SECRET", "\"${localProps.getProperty("APP_SECRET") ?: ""}\"")
+        buildConfigField("String", "RELAY_URL", "\"${localProps.getProperty("RELAY_URL") ?: ""}\"")
     }
 
     buildFeatures {

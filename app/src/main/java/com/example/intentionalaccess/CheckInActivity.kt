@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
-import com.example.intentionalaccess.R
 
 class CheckInActivity : Activity() {
 
@@ -51,12 +50,20 @@ class CheckInActivity : Activity() {
     private fun saveOutcome(outcome: String) {
         val prefs = getSharedPreferences("intentional_access", MODE_PRIVATE)
         val sessionsJson = prefs.getString("sessions", "[]") ?: "[]"
-        val updated = sessionsJson.replace(
-            "\"accomplished\":null",
-            "\"accomplished\":\"$outcome\""
-        )
+        try {
+            val array = org.json.JSONArray(sessionsJson)
+            for (i in array.length() - 1 downTo 0) {
+                val obj = array.getJSONObject(i)
+                if (obj.optString("package") == blockedPackage && obj.isNull("accomplished")) {
+                    obj.put("accomplished", outcome)
+                    break
+                }
+            }
+            prefs.edit().putString("sessions", array.toString()).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("Cotter", "Failed to save check-in outcome", e)
+        }
         prefs.edit()
-            .putString("sessions", updated)
             .remove("unlocked_package")
             .remove("unlocked_at")
             .apply()

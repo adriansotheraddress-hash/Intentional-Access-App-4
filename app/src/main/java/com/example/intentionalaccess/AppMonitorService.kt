@@ -17,6 +17,7 @@ class AppMonitorService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val checkInterval = 1000L
     private var lastBlockedApp = ""
+    private var isMonitoring = false
 
     private val blockedApps = mapOf(
         "com.instagram.android" to "Instagram",
@@ -39,14 +40,22 @@ class AppMonitorService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(1, buildNotification())
-        handler.post(monitorRunnable)
+        getSharedPreferences("intentional_access", Context.MODE_PRIVATE)
+            .edit().putBoolean("service_running", true).apply()
+        if (!isMonitoring) {
+            isMonitoring = true
+            handler.post(monitorRunnable)
+        }
         return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        isMonitoring = false
         handler.removeCallbacks(monitorRunnable)
+        getSharedPreferences("intentional_access", Context.MODE_PRIVATE)
+            .edit().putBoolean("service_running", false).apply()
         super.onDestroy()
     }
 
@@ -69,6 +78,7 @@ class AppMonitorService : Service() {
             return
         }
 
+        val appName = blockedApps[foregroundApp] ?: foregroundApp
         val prefs = getSharedPreferences("intentional_access", Context.MODE_PRIVATE)
         val unlockedPackage = prefs.getString("unlocked_package", "") ?: ""
         val unlockedAt = prefs.getLong("unlocked_at", 0L)
@@ -83,7 +93,9 @@ class AppMonitorService : Service() {
         if (sessionExpired) {
             if (foregroundApp == lastBlockedApp) return
             lastBlockedApp = foregroundApp
-            // TODO: CheckInActivity.launch(this, foregroundApp, appName, lastIntent)
+            val sessionsJson = prefs.getString("sessions", "[]") ?: "[]"
+            val lastIntent = extractLastIntent(sessionsJson, foregroundApp)
+            CheckInActivity.launch(this, foregroundApp, appName, lastIntent)
             return
         }
 
@@ -95,7 +107,6 @@ class AppMonitorService : Service() {
         if (foregroundApp == lastBlockedApp) return
 
         lastBlockedApp = foregroundApp
-        val appName = blockedApps[foregroundApp] ?: foregroundApp
         IntentGateActivity.launch(this, foregroundApp, appName)
     }
 

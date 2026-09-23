@@ -68,8 +68,17 @@ class MainActivity : AppCompatActivity() {
             overlayButton.isEnabled = false
         }
 
-        if (hasUsagePermission() && hasOverlayPermission()) {
+        val prefs = getSharedPreferences("intentional_access", Context.MODE_PRIVATE)
+        val serviceRunning = prefs.getBoolean("service_running", false)
+
+        if (serviceRunning) {
+            statusText.text = "✓ Intentional Access is active"
+            statusText.setTextColor(0xFF4ADE80.toInt())
+            startButton.text = "Running"
+            startButton.isEnabled = false
+        } else if (hasUsagePermission() && hasOverlayPermission()) {
             startButton.isEnabled = true
+            startButton.text = "3. Start Monitoring"
             statusText.text = "Ready to start."
             statusText.setTextColor(0xFF888888.toInt())
         }

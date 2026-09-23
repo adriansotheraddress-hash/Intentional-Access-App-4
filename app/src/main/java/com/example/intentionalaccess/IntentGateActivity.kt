@@ -20,13 +20,13 @@ class IntentGateActivity : Activity() {
     private lateinit var appNameText: TextView
     private var blockedPackage: String = ""
     private var pasteLength: Int = 0
-    private val apiKey = BuildConfig.API_KEY
+    private val appSecret = BuildConfig.APP_SECRET
+    private val relayUrl = BuildConfig.RELAY_URL
     private var isValidating = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Keep screen on and show over lock screen
         window.addFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                     WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
@@ -126,9 +126,22 @@ class IntentGateActivity : Activity() {
     override fun onBackPressed() {
         // Do nothing — can't dismiss without submitting
     }
+
     private fun validateWithClaude(intentText: String, onResult: (Boolean, String) -> Unit) {
         val prefs = getSharedPreferences("intentional_access", Context.MODE_PRIVATE)
-        val sessionsJson = prefs.getString("sessions", "[]") ?: "[]"
+        val allSessionsJson = prefs.getString("sessions", "[]") ?: "[]"
+
+        val relevantSessions = try {
+            val array = org.json.JSONArray(allSessionsJson)
+            val filtered = org.json.JSONArray()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                if (obj.optString("package") == blockedPackage) filtered.put(obj)
+            }
+            filtered.toString()
+        } catch (e: Exception) {
+            "[]"
+        }
 
         val prompt = """You are validating a user's stated intent before they open a social media app.
 
@@ -136,7 +149,7 @@ The user was asked: "What is your intent for this session?"
 Their answer: "$intentText"
 
 Past intents for this app (check for similarity):
-$sessionsJson
+$relevantSessions
 
 Check ALL of the following:
 1. Does it actually answer the question "what is your intent"? It should describe a specific purpose.
@@ -149,12 +162,13 @@ REASON: one short sentence explaining why if false, or "looks good" if true"""
 
         Thread {
             try {
-                val url = java.net.URL("https://api.anthropic.com/v1/messages")
+                val url = java.net.URL(relayUrl)
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "POST"
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
                 connection.setRequestProperty("Content-Type", "application/json")
-                connection.setRequestProperty("x-api-key", apiKey)
-                connection.setRequestProperty("anthropic-version", "2023-06-01")
+                connection.setRequestProperty("x-app-secret", appSecret)
                 connection.doOutput = true
 
                 val body = """
@@ -168,6 +182,14 @@ REASON: one short sentence explaining why if false, or "looks good" if true"""
                 connection.outputStream.write(body.toByteArray())
                 connection.outputStream.flush()
 
+                val responseCode = connection.responseCode
+                if (responseCode !in 200..299) {
+                    val errorBody = connection.errorStream?.bufferedReader()?.readText() ?: "no body"
+                    android.util.Log.e("Cotter", "Relay returned $responseCode: $errorBody")
+                    runOnUiThread { onResult(true, "looks good") }
+                    return@Thread
+                }
+
                 val response = connection.inputStream.bufferedReader().readText()
                 val json = org.json.JSONObject(response)
                 val content = json.getJSONArray("content")
@@ -180,10 +202,12 @@ REASON: one short sentence explaining why if false, or "looks good" if true"""
 
                 runOnUiThread { onResult(isValid, reason) }
             } catch (e: Exception) {
+                android.util.Log.e("Cotter", "Relay call failed", e)
                 runOnUiThread { onResult(true, "looks good") } // fail open
             }
         }.start()
     }
+
     private fun isSpam(text: String): Boolean {
         val lower = text.lowercase().trim()
         val words = lower.split("\\s+".toRegex()).filter { it.isNotEmpty() }
@@ -197,11 +221,28 @@ REASON: one short sentence explaining why if false, or "looks good" if true"""
     private fun saveSession(intentText: String, packageName: String) {
         val prefs = getSharedPreferences("intentional_access", Context.MODE_PRIVATE)
         val sessionsJson = prefs.getString("sessions", "[]") ?: "[]"
-        val timestamp = System.currentTimeMillis()
-        val newEntry = """{"intent":"$intentText","package":"$packageName","time":$timestamp,"accomplished":null}"""
-        val updated = sessionsJson.dropLast(1) +
-                (if (sessionsJson == "[]") "" else ",") + newEntry + "]"
-        prefs.edit().putString("sessions", updated).apply()
+        val array = try {
+            org.json.JSONArray(sessionsJson)
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+
+        val entry = org.json.JSONObject()
+        entry.put("intent", intentText)
+        entry.put("package", packageName)
+        entry.put("time", System.currentTimeMillis())
+        entry.put("accomplished", org.json.JSONObject.NULL)
+        array.put(entry)
+
+        val maxEntries = 50
+        val trimmed = if (array.length() > maxEntries) {
+            val start = array.length() - maxEntries
+            val newArray = org.json.JSONArray()
+            for (i in start until array.length()) newArray.put(array.getJSONObject(i))
+            newArray
+        } else array
+
+        prefs.edit().putString("sessions", trimmed.toString()).apply()
     }
 
     companion object {
